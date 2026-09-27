@@ -21,6 +21,17 @@ Public Class PageSetupUI
         Refresh() '#4826
         AniControlEnabled -= 1
 
+        '主题切换后由 ModSecret.ThemeRefresh 回调过来，把新主题的配色回填到四个配色滑条。
+        '不这样做的话，滑条会停留在上一次自定义的取值上，用户一动它就跳回「自定义」。
+        ThemeChangedHook = Sub(Theme As Integer) SyncPresetSlidersToTheme(Theme)
+        SyncThemeSliders()
+
+        '自定义配色方案：恢复上次选中的那一套
+        ProfileRefresh()
+        '如果当前就是「自定义」主题，把选中的配色重新套一遍，
+        '否则滑条会被 RefreshSettings 重置成默认值，和界面显示的颜色对不上
+        If Settings.Get(Of Integer)("UiLauncherTheme") = 14 AndAlso _ProfileIndex >= 0 Then ProfileApply(_ProfileIndex)
+
         '非重复加载部分
         Static Reloaded As Boolean = False
         If Reloaded Then Return
@@ -28,20 +39,17 @@ Public Class PageSetupUI
 
         SliderLoad()
 
-        If BuildType = BuildTypes.Release Then PanLauncherHide.Visibility = Visibility.Visible
-
-        '设置解锁
-        If Not RadioLauncherTheme8.IsEnabled Then LabLauncherTheme8Copy.ToolTip = $"累积赞助达到 ¥23.33 后，在爱发电私信发送【土豆 {Identify}】以解锁。" & vbCrLf & "右键打开赞助页面，如果觉得 PCL 做得还不错就支持一下吧 =w=！"
-        RadioLauncherTheme8.ToolTip = $"累积赞助达到 ¥23.33 后，在爱发电私信发送【土豆 {Identify}】以解锁"
-        If Not RadioLauncherTheme9.IsEnabled Then LabLauncherTheme9Copy.ToolTip = "· 反馈一个 Bug，在标记为 [完成] 后回复识别码要求解锁（右键打开反馈页面）" & vbCrLf & "· 提交一个 Pull Request 或主页预设，在标记为 [完成] 后回复识别码要求解锁"
-        RadioLauncherTheme9.ToolTip = "· 反馈一个 Bug，在标记为 [完成] 后回复识别码要求解锁" & vbCrLf & "· 提交一个 Pull Request 或主页预设，在标记为 [完成] 后回复识别码要求解锁"
-        '极客蓝的处理在 ThemeCheck 中
+        '开源版没有隐藏主题与解锁门槛，所有主题都可以直接选择，SliderLoad 之后无需再处理主题解锁
+        '正式版构建仍然显示赞助提示，但它已改为独立卡片（CardLauncherHide），不会再遮挡主题网格
+        If BuildType = BuildTypes.Release Then CardLauncherHide.Visibility = Visibility.Visible
 
     End Sub
     Public Sub Refresh()
         Try
             SettingService.RefreshSettings(Me)
             BackgroundRefresh(False, False)
+            BackgroundSizeRefresh()
+            BackgroundPreviewRefresh()
 
             '标题栏
             CheckLogoLeft.Visibility = If(RadioLogoType0.Checked, Visibility.Visible, Visibility.Collapsed)
@@ -84,12 +92,14 @@ Public Class PageSetupUI
             PanBackgroundOpacity.Visibility = Visibility.Visible
             PanBackgroundBlur.Visibility = Visibility.Visible
             PanBackgroundSuit.Visibility = Visibility.Visible
+            PanBackgroundSize.Visibility = Visibility.Visible
             BtnBackgroundClear.Visibility = Visibility.Visible
             CardBackground.Title = "背景图片（" & Count & " 张）"
         Else
             PanBackgroundOpacity.Visibility = Visibility.Collapsed
             PanBackgroundBlur.Visibility = Visibility.Collapsed
             PanBackgroundSuit.Visibility = Visibility.Collapsed
+            PanBackgroundSize.Visibility = Visibility.Collapsed
             BtnBackgroundClear.Visibility = Visibility.Collapsed
             CardBackground.Title = "背景图片"
         End If
@@ -101,6 +111,103 @@ Public Class PageSetupUI
             BackgroundRefresh(False, True)
             Hint("背景图片已清空！", HintType.Green)
         End If
+    End Sub
+    ''' <summary>
+    ''' 按设置刷新预览模式：收起全部设置卡片（含「背景图片」自己）以及顶栏、左侧导航，
+    ''' 只留 FrmMain 上那条浮动调整条，于是能完整看到整张背景，又能边拖滑条边看效果。
+    ''' 写成 Shared 是为了能直接挂到 Settings 的 OnChanged 上。
+    ''' </summary>
+    Public Shared Sub BackgroundPreviewRefresh()
+        Try
+            Dim Page As PageSetupUI = FrmSetupUI
+            If Page Is Nothing OrElse Page.CardBackground Is Nothing Then Return
+            Dim IsPreview As Boolean = Settings.Get(Of Boolean)("UiBackgroundPreview")
+            '预览时全部卡片都收起 —— 包括「背景图片」卡片本身，否则它会挡住背景
+            Dim AllCards As New List(Of FrameworkElement) From {
+                Page.CardBackground, Page.CardLauncher, Page.CardColorProfile,
+                Page.CardMusic, Page.CardLogo, Page.CardCustom, Page.CardSwitch}
+            For Each Card As FrameworkElement In AllCards
+                If Card IsNot Nothing Then
+                    Card.Visibility = If(IsPreview, Visibility.Collapsed, Visibility.Visible)
+                End If
+            Next
+            'CardLauncherHide 平时由 BuildType 控制，这里只在预览时强制收起
+            If Page.CardLauncherHide IsNot Nothing AndAlso IsPreview Then Page.CardLauncherHide.Visibility = Visibility.Collapsed
+            '顶栏与左侧导航也收起来，才是干净的整窗口背景
+            If FrmMain IsNot Nothing Then
+                FrmMain.PanTitle.Visibility = If(IsPreview, Visibility.Collapsed, Visibility.Visible)
+                FrmMain.PanLeft.Visibility = If(IsPreview, Visibility.Collapsed, Visibility.Visible)
+                FrmMain.PanHint.Visibility = If(IsPreview, Visibility.Collapsed, Visibility.Visible)
+                '浮动调整条只在预览且停在「个性化」页时显示
+                FrmMain.RefreshBackgroundPreviewPanel()
+            End If
+            '退出预览后，设置页卡片重新出现，需要重量一次高度
+            If Not IsPreview Then Page.CardBackground.TriggerForceResize()
+        Catch ex As Exception
+            Logger.Error(ex, "刷新背景预览模式失败")
+        End Try
+    End Sub
+
+    Private Sub CheckBackgroundPreview_Change() Handles CheckBackgroundPreview.Change
+        BackgroundPreviewRefresh()
+    End Sub
+
+    Private Sub BtnBackgroundSizeReset_Click(sender As Object, e As EventArgs) Handles BtnBackgroundSizeReset.Click
+        Try
+            AniControlEnabled += 1
+            Try
+                SliderBackgroundScale.Value = 100
+                SliderBackgroundScaleW.Value = 100
+                SliderBackgroundScaleH.Value = 100
+                SliderBackgroundOffsetX.Value = 500 '位移滑条映射范围 0~1000，500 代表位移 0
+                SliderBackgroundOffsetY.Value = 500
+            Finally
+                AniControlEnabled -= 1
+            End Try
+            Settings.Set("UiBackgroundScale", 100)
+            Settings.Set("UiBackgroundScaleW", 100)
+            Settings.Set("UiBackgroundScaleH", 100)
+            Settings.Set("UiBackgroundOffsetX", 0)
+            Settings.Set("UiBackgroundOffsetY", 0)
+            Hint("已重置背景图片尺寸", HintType.Green)
+        Catch ex As Exception
+            Logger.Error(ex, "重置背景图片尺寸失败")
+        End Try
+    End Sub
+    Private Sub CheckBackgroundAspectLock_Change() Handles CheckBackgroundAspectLock.Change
+        BackgroundSizeRefresh()
+    End Sub
+    Private Sub SliderBackgroundOffset_Change() Handles SliderBackgroundOffsetX.Change, SliderBackgroundOffsetY.Change
+        If AniControlEnabled <> 0 Then Return
+        Try
+            '位移滑条没有绑定 SettingService.Key（需要把 0~1000 映射为 -500~500 像素），因此在这里手动保存
+            Settings.Set("UiBackgroundOffsetX", SliderBackgroundOffsetX.Value - 500)
+            Settings.Set("UiBackgroundOffsetY", SliderBackgroundOffsetY.Value - 500)
+        Catch ex As Exception
+            Logger.Error(ex, "保存背景图片位移设置失败")
+        End Try
+    End Sub
+    ''' <summary>
+    ''' 刷新背景图片尺寸设置的界面状态：位移滑条的映射值与宽高比例的显示。
+    ''' </summary>
+    Private Sub BackgroundSizeRefresh()
+        Try
+            '位移滑条的可见范围是 0~1000，实际位移 = 滑条值 - 500（MySlider 没有 MinValue，无法直接使用负数范围）
+            AniControlEnabled += 1
+            Try
+                SliderBackgroundOffsetX.Value = (Settings.Get(Of Integer)("UiBackgroundOffsetX") + 500).Clamp(0, 1000)
+                SliderBackgroundOffsetY.Value = (Settings.Get(Of Integer)("UiBackgroundOffsetY") + 500).Clamp(0, 1000)
+            Finally
+                AniControlEnabled -= 1
+            End Try
+            '锁定宽高比例时隐藏宽高独立设置
+            Dim IsLock As Boolean = CheckBackgroundAspectLock.Checked
+            PanBackgroundScaleW.Visibility = If(IsLock, Visibility.Collapsed, Visibility.Visible)
+            PanBackgroundScaleH.Visibility = If(IsLock, Visibility.Collapsed, Visibility.Visible)
+            CardBackground.TriggerForceResize()
+        Catch ex As Exception
+            Logger.Error(ex, "刷新背景图片尺寸设置失败")
+        End Try
     End Sub
     ''' <summary>
     ''' 刷新背景图片及设置页 UI。
@@ -356,68 +463,395 @@ Refresh:
     End Sub
 
     '主题
-    Private Sub LabLauncherTheme5Unlock_MouseLeftButtonUp(sender As Object, e As MouseButtonEventArgs) Handles LabLauncherTheme5Unlock.MouseLeftButtonUp
-        RadioLauncherTheme5Gray.Opacity -= 0.7
-        RadioLauncherTheme5.Opacity += 0.7
-        AniStart({
-            AaOpacity(RadioLauncherTheme5Gray, 1, 1000 * AniSpeed, 500 * AniSpeed, New AniEaseInFluent),
-            AaOpacity(RadioLauncherTheme5, -1, 1000 * AniSpeed, 500 * AniSpeed, New AniEaseInFluent)
-        }, "ThemeUnlock")
-        If RadioLauncherTheme5Gray.Opacity < 0.02 Then
-            ThemeUnlock(5, UnlockHint:="隐藏主题 玄素黑 已解锁！")
-            AniStop("ThemeUnlock")
-            RadioLauncherTheme5.Checked = True
-        End If
-    End Sub
-    Private Sub LabLauncherTheme11Click_MouseLeftButtonUp() Handles LabLauncherTheme11Click.MouseLeftButtonUp, RadioLauncherTheme11.MouseRightButtonUp
-        If LabLauncherTheme11Click.Visibility = Visibility.Collapsed OrElse If(LabLauncherTheme11Click.ToolTip, "").ToString.Contains("点击") Then
-            If MyMsgBox(
-                "1. 不爬取或攻击相关服务或网站，不盗取相关账号，没有谜题可以或需要以此来解决。" & vbCrLf &
-                "2. 不得篡改或损毁相关公开信息，请尽量让它们保持原状。" & vbCrLf &
-                "3. 在你感到迷茫的时候，看看回声洞可能会给你带来惊喜。" & vbCrLf & vbCrLf &
-                "若违规，可能会被从任意相关群中踢出！",
-                "解密游戏的基本规则", "我知道了", "恕我拒绝") = 1 Then
-                MyMsgBox("你需要用自己的智慧来找到下一步的线索……" & vbCrLf &
-                         "初始线索：gnp.dorC61\60\20\0202\moc.x1xa.2s\\:sp" & "T".Lower & "th", "解密游戏") '防止触发病毒检测规则
-            End If
-        End If
-    End Sub
-    Private Sub LabLauncherTheme8Copy_MouseRightButtonUp() Handles LabLauncherTheme8Copy.MouseRightButtonUp, RadioLauncherTheme8.MouseRightButtonUp
-        OpenWebsite("https://meloong.com/afd/a/LTCat")
-    End Sub
-    Private Sub LabLauncherTheme9Copy_MouseRightButtonUp() Handles LabLauncherTheme9Copy.MouseRightButtonUp, RadioLauncherTheme9.MouseRightButtonUp
-        PageOtherLeft.TryFeedback()
-    End Sub
 
     '主题自定义
     Private Sub RadioLauncherTheme14_Change(sender As Object, e As RouteEventArgs) Handles RadioLauncherTheme14.Changed
-        If RadioLauncherTheme14.Checked Then
-            If LabLauncherHue.Visibility = Visibility.Visible Then Return
-            LabLauncherHue.Visibility = Visibility.Visible
-            SliderLauncherHue.Visibility = Visibility.Visible
-            LabLauncherSat.Visibility = Visibility.Visible
-            SliderLauncherSat.Visibility = Visibility.Visible
-            LabLauncherDelta.Visibility = Visibility.Visible
-            SliderLauncherDelta.Visibility = Visibility.Visible
-            LabLauncherLight.Visibility = Visibility.Visible
-            SliderLauncherLight.Visibility = Visibility.Visible
-        Else
-            If LabLauncherHue.Visibility = Visibility.Collapsed Then Return
-            LabLauncherHue.Visibility = Visibility.Collapsed
-            SliderLauncherHue.Visibility = Visibility.Collapsed
-            LabLauncherSat.Visibility = Visibility.Collapsed
-            SliderLauncherSat.Visibility = Visibility.Collapsed
-            LabLauncherDelta.Visibility = Visibility.Collapsed
-            SliderLauncherDelta.Visibility = Visibility.Collapsed
-            LabLauncherLight.Visibility = Visibility.Collapsed
-            SliderLauncherLight.Visibility = Visibility.Collapsed
-        End If
+        '四个配色滑条已改为常显，这里只需要刷新卡片高度
         CardLauncher.TriggerForceResize()
     End Sub
+
+    ''' <summary>
+    ''' 把当前选中主题的配色同步到四个配色滑条上（仅在该主题是预置主题时生效）。
+    ''' </summary>
+    Private Sub SyncThemeSliders()
+        SyncPresetSlidersToTheme(Settings.Get(Of Integer)("UiLauncherTheme"))
+    End Sub
+
+    ''' <summary>
+    ''' 按指定的预置主题刷新滑条显示。主题为「自定义」或越界时不做任何事，
+    ''' 以免把用户正在调的颜色覆盖掉。
+    ''' 滑条值到主题参数的换算必须与 ModSecret.ThemeLoadPreset 严格互逆：
+    '''   Hue = 滑条值
+    '''   Sat = 滑条值
+    '''   LightAdjust = 滑条值 - 20
+    '''   TopbarDelta = (滑条值 - 90) * 2
+    ''' </summary>
+    Public Sub SyncPresetSlidersToTheme(Theme As Integer)
+        Try
+            If SliderLauncherHue Is Nothing OrElse Not SliderLauncherHue.IsLoaded Then Return
+            Dim Hue As Integer, Sat As Integer, LightAdjust As Integer, TopbarDelta As Integer
+            If Not ThemeGetPreset(Theme, Hue, Sat, LightAdjust, TopbarDelta) Then Return
+            '屏蔽本次回填产生的 Change 事件，避免被误判成用户拖动而切回「自定义」
+            SyncingThemeSliders = True
+            AniControlEnabled += 1
+            Try
+                SliderLauncherHue.Value = Hue.Clamp(0, 360)
+                SliderLauncherSat.Value = Sat.Clamp(0, 100)
+                SliderLauncherLight.Value = (LightAdjust + 20).Clamp(0, 40)
+                Dim SliderDelta As Integer = CInt(TopbarDelta / 2) + 90
+                SliderLauncherDelta.Value = SliderDelta.Clamp(0, 180)
+            Finally
+                AniControlEnabled -= 1
+                SyncingThemeSliders = False
+            End Try
+            '切到预置主题了，说明当前界面颜色已不是那套配色方案，取消选中标记
+            If Not _ProfileApplying Then
+                _ProfileIndex = -1
+                Settings.Set("UiLauncherColorProfileIndex", -1)
+                ProfileRefreshUI()
+            End If
+        Catch ex As Exception
+            Logger.Error(ex, "同步主题配色到滑条失败")
+        End Try
+    End Sub
+
     Private Sub HSL_Change() Handles SliderLauncherHue.Change, SliderLauncherLight.Change, SliderLauncherSat.Change, SliderLauncherDelta.Change
         If AniControlEnabled <> 0 OrElse SliderLauncherSat Is Nothing OrElse Not SliderLauncherSat.IsLoaded Then Return
-        ThemeRefresh()
+        '正在把预置主题回填到滑条，这不是用户的调整，不要切主题
+        If SyncingThemeSliders Then Return
+        Try
+            '先手动写入设置：Handles 的触发顺序不保证，避免主题刷新时读到滑条的旧值
+            SettingService.SaveSetting(SliderLauncherHue)
+            SettingService.SaveSetting(SliderLauncherSat)
+            SettingService.SaveSetting(SliderLauncherDelta)
+            SettingService.SaveSetting(SliderLauncherLight)
+            '用户拖动滑条才视为微调，切换到「自定义」；
+            '已经是自定义主题时不要重复赋值，否则会打断正在进行的拖动
+            If Settings.Get(Of Integer)("UiLauncherTheme") <> 14 Then RadioLauncherTheme14.Checked = True
+            ThemeRefresh()
+        Catch ex As Exception
+            Logger.Error(ex, "应用自定义主题颜色失败")
+        End Try
     End Sub
+
+#Region "自定义配色方案"
+
+    ''' <summary>
+    ''' 当前选中的配色方案下标，-1 表示没有（还没保存过任何方案）。
+    ''' </summary>
+    Private _ProfileIndex As Integer = -1
+    ''' <summary>正在套用配色方案，此时滑条赋值不算用户微调。</summary>
+    Private _ProfileApplying As Boolean = False
+
+    ''' <summary>
+    ''' 从设置读取当前选中的配色方案下标，并同步界面。页面每次加载都会走一遍。
+    ''' </summary>
+    Private Sub ProfileRefresh()
+        Try
+            Dim Count As Integer = ColorProfileCount()
+            _ProfileIndex = Settings.Get(Of Integer)("UiLauncherColorProfileIndex")
+            '方案被删光、或下标越界时归零
+            If Count = 0 Then
+                _ProfileIndex = -1
+            ElseIf _ProfileIndex < 0 OrElse _ProfileIndex >= Count Then
+                _ProfileIndex = 0
+            End If
+            Settings.Set("UiLauncherColorProfileIndex", _ProfileIndex)
+            ProfileRefreshUI()
+        Catch ex As Exception
+            Logger.Error(ex, "刷新配色方案失败")
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 只更新配色方案的界面文字与按钮可用状态。
+    ''' </summary>
+    Private Sub ProfileRefreshUI()
+        Try
+            If LabColorProfile Is Nothing Then Return
+            Dim Count As Integer = ColorProfileCount()
+            Dim HasProfile As Boolean = Count > 0 AndAlso _ProfileIndex >= 0 AndAlso _ProfileIndex < Count
+            If HasProfile Then
+                Dim Name As String = Nothing
+                Dim Hue As Integer, Sat As Integer, LightAdjust As Integer, TopbarDelta As Integer
+                ColorProfileGet(_ProfileIndex, Name, Hue, Sat, LightAdjust, TopbarDelta)
+                LabColorProfile.Text = $"{Name}（第 {_ProfileIndex + 1} / {Count} 套）"
+            Else
+                LabColorProfile.Text = "还没有保存过配色方案"
+            End If
+            BtnProfilePrev.IsEnabled = HasProfile
+            BtnProfileNext.IsEnabled = HasProfile
+            BtnProfileApply.IsEnabled = HasProfile
+            BtnProfileOverwrite.IsEnabled = HasProfile
+            BtnProfileDelete.IsEnabled = HasProfile
+        Catch ex As Exception
+            Logger.Error(ex, "刷新配色方案界面失败")
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 把指定下标的配色方案套用到四个滑条上并立即生效。
+    ''' </summary>
+    Private Sub ProfileApply(Index As Integer)
+        Dim Name As String = Nothing
+        Dim Hue As Integer, Sat As Integer, LightAdjust As Integer, TopbarDelta As Integer
+        If Not ColorProfileGet(Index, Name, Hue, Sat, LightAdjust, TopbarDelta) Then Return
+        _ProfileApplying = True
+        Try
+            '先选中「自定义」主题，保证下面写入的颜色会被采用
+            If Settings.Get(Of Integer)("UiLauncherTheme") <> 14 Then RadioLauncherTheme14.Checked = True
+            '套用期间屏蔽 Change 事件，避免被当成用户拖动
+            SyncingThemeSliders = True
+            AniControlEnabled += 1
+            Try
+                SliderLauncherHue.Value = Hue.Clamp(0, 360)
+                SliderLauncherSat.Value = Sat.Clamp(0, 100)
+                SliderLauncherLight.Value = (LightAdjust + 20).Clamp(0, 40)
+                SliderLauncherDelta.Value = (CInt(TopbarDelta / 2) + 90).Clamp(0, 180)
+            Finally
+                AniControlEnabled -= 1
+                SyncingThemeSliders = False
+            End Try
+            '手动落盘：滑条被屏蔽期间不会自己写设置
+            SettingService.SaveSetting(SliderLauncherHue)
+            SettingService.SaveSetting(SliderLauncherSat)
+            SettingService.SaveSetting(SliderLauncherDelta)
+            SettingService.SaveSetting(SliderLauncherLight)
+            ThemeRefresh()
+        Finally
+            _ProfileApplying = False
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 切换配色方案：写设置 + 套用。
+    ''' </summary>
+    Private Sub ProfileSwitch(Delta As Integer)
+        Try
+            Dim Count As Integer = ColorProfileCount()
+            If Count = 0 Then Return
+            Dim NewIndex As Integer = _ProfileIndex + Delta
+            If NewIndex < 0 Then NewIndex = Count - 1
+            If NewIndex >= Count Then NewIndex = 0
+            _ProfileIndex = NewIndex
+            Settings.Set("UiLauncherColorProfileIndex", _ProfileIndex)
+            ProfileRefreshUI()
+            ProfileApply(_ProfileIndex)
+        Catch ex As Exception
+            Logger.Error(ex, "切换配色方案失败")
+        End Try
+    End Sub
+
+    Private Sub BtnProfilePrev_Click(sender As Object, e As EventArgs) Handles BtnProfilePrev.Click
+        ProfileSwitch(-1)
+    End Sub
+    Private Sub BtnProfileNext_Click(sender As Object, e As EventArgs) Handles BtnProfileNext.Click
+        ProfileSwitch(1)
+    End Sub
+    Private Sub BtnProfileApply_Click(sender As Object, e As EventArgs) Handles BtnProfileApply.Click
+        Try
+            If _ProfileIndex < 0 Then Return
+            ProfileApply(_ProfileIndex)
+            Hint("已应用配色方案", HintType.Green)
+        Catch ex As Exception
+            Logger.Error(ex, "应用配色方案失败")
+        End Try
+    End Sub
+    Private Sub BtnProfileSaveAs_Click(sender As Object, e As EventArgs) Handles BtnProfileSaveAs.Click
+        Try
+            '用当前滑条的值另存为新方案；颜色换算与 ModSecret.ThemeLoadPreset 严格互逆
+            Dim Hue As Integer = SliderLauncherHue.Value
+            Dim Sat As Integer = SliderLauncherSat.Value
+            Dim LightAdjust As Integer = SliderLauncherLight.Value - 20
+            Dim TopbarDelta As Integer = (SliderLauncherDelta.Value - 90) * 2
+            _ProfileIndex = ColorProfileAdd("", Hue, Sat, LightAdjust, TopbarDelta)
+            Settings.Set("UiLauncherColorProfileIndex", _ProfileIndex)
+            ProfileRefreshUI()
+            Hint($"已保存为新的配色方案（第 {_ProfileIndex + 1} 套）", HintType.Green)
+        Catch ex As Exception
+            Logger.Error(ex, "保存配色方案失败")
+        End Try
+    End Sub
+    Private Sub BtnProfileOverwrite_Click(sender As Object, e As EventArgs) Handles BtnProfileOverwrite.Click
+        Try
+            If _ProfileIndex < 0 Then Return
+            Dim Hue As Integer = SliderLauncherHue.Value
+            Dim Sat As Integer = SliderLauncherSat.Value
+            Dim LightAdjust As Integer = SliderLauncherLight.Value - 20
+            Dim TopbarDelta As Integer = (SliderLauncherDelta.Value - 90) * 2
+            ColorProfileUpdate(_ProfileIndex, Hue, Sat, LightAdjust, TopbarDelta)
+            ProfileRefreshUI()
+            Hint("已覆盖保存当前配色", HintType.Green)
+        Catch ex As Exception
+            Logger.Error(ex, "覆盖保存配色方案失败")
+        End Try
+    End Sub
+    Private Sub BtnProfileDelete_Click(sender As Object, e As EventArgs) Handles BtnProfileDelete.Click
+        Try
+            If _ProfileIndex < 0 Then Return
+            Dim Count As Integer = ColorProfileCount()
+            Dim Name As String = Nothing
+            Dim H As Integer, S As Integer, L As Integer, D As Integer
+            If ColorProfileGet(_ProfileIndex, Name, H, S, L, D) Then Name = Name Else Name = "该配色"
+            If MyMsgBox($"确定要删除配色方案「{Name}」吗？" & vbCrLf & "删除后无法恢复，但当前的界面颜色不会改变。",
+                        "删除配色方案", "删除", "取消", IsWarn:=True) <> 1 Then Return
+            ColorProfileRemove(_ProfileIndex)
+            '重新落位到相邻的一套
+            Dim NewCount As Integer = Count - 1
+            If NewCount <= 0 Then
+                _ProfileIndex = -1
+            ElseIf _ProfileIndex >= NewCount Then
+                _ProfileIndex = NewCount - 1
+            End If
+            Settings.Set("UiLauncherColorProfileIndex", _ProfileIndex)
+            ProfileRefreshUI()
+            Hint("已删除配色方案", HintType.Green)
+        Catch ex As Exception
+            Logger.Error(ex, "删除配色方案失败")
+        End Try
+    End Sub
+
+#End Region
+
+#Region "取色与自动优化"
+
+    ''' <summary>
+    ''' 取色结束后由 FormMain 回调过来：把取到的颜色换算成主题参数并套用。
+    ''' 换算逻辑在 ModSecret.ColorToThemeParams —— PCL 的主题天然是「一个色相 + 一个饱和度」，
+    ''' 所以吸到一个颜色就足以生成一整套可用配色。
+    ''' </summary>
+    Public Shared Sub OnColorPicked()
+        Try
+            Dim Page As PageSetupUI = FrmSetupUI
+            If Page Is Nothing Then Return
+            If FrmMain Is Nothing OrElse Not FrmMain.PickedValid Then Return
+            Dim R As Integer = FrmMain.PickedR
+            Dim G As Integer = FrmMain.PickedG
+            Dim B As Integer = FrmMain.PickedB
+            Dim Hue As Integer, Sat As Integer
+            ColorToThemeParams(R, G, B, Hue, Sat)
+            Page.ApplyPickedColor(Hue, Sat, $"#{R:X2}{G:X2}{B:X2}")
+        Catch ex As Exception
+            Logger.Error(ex, "应用取色结果失败")
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 把取到的色相/饱和度写进四个滑条并立即生效，同时报一下明暗对比体检结果。
+    ''' </summary>
+    Private Sub ApplyPickedColor(Hue As Integer, Sat As Integer, HexText As String)
+        Try
+            _ProfileApplying = True
+            SyncingThemeSliders = True
+            AniControlEnabled += 1
+            Try
+                SliderLauncherHue.Value = Hue.Clamp(0, 360)
+                SliderLauncherSat.Value = Sat.Clamp(0, 100)
+                '吸色只定色调与饱和度，亮度保留你原来的倾向
+                If SliderLauncherLight.Value <= 0 Then SliderLauncherLight.Value = 20
+            Finally
+                AniControlEnabled -= 1
+                SyncingThemeSliders = False
+                _ProfileApplying = False
+            End Try
+            If Settings.Get(Of Integer)("UiLauncherTheme") <> 14 Then RadioLauncherTheme14.Checked = True
+            SettingService.SaveSetting(SliderLauncherHue)
+            SettingService.SaveSetting(SliderLauncherSat)
+            SettingService.SaveSetting(SliderLauncherLight)
+            SettingService.SaveSetting(SliderLauncherDelta)
+            ThemeRefresh()
+            MyMsgBox($"已取到颜色 {HexText}" & vbCrLf & vbCrLf &
+                     $"换算后的主题配色：" & vbCrLf &
+                     $"色调 {Hue}°　饱和度 {Sat}" & vbCrLf & vbCrLf &
+                     ContrastSummary(Hue, Sat, Settings.Get(Of Integer)("UiLauncherLight") - 20) & vbCrLf & vbCrLf &
+                     "如果明暗对比不理想，可以点「自动优化配色」。",
+                     "取色结果")
+        Catch ex As Exception
+            Logger.Error(ex, "套用取色失败")
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 生成对比度体检的可读文字。
+    ''' </summary>
+    Private Shared Function ContrastSummary(Hue As Integer, Sat As Integer, LightAdjust As Integer) As String
+        Dim Report As ContrastReport = CheckContrast(Hue, Sat, LightAdjust)
+        Dim Lines As New List(Of String)
+        Lines.Add("明暗对比体检（括号内为建议下限）：")
+        Lines.Add($"　正文　　　{Report.MainText:0.0}：1　{(If(Report.IsMainTextOk, "合格", "偏弱"))}　(≥4.5)")
+        Lines.Add($"　次要文字　{Report.SecondaryText:0.0}：1　{(If(Report.IsSecondaryTextOk, "合格", "偏弱"))}　(≥3.0)")
+        Lines.Add($"　强调色　　 {Report.AccentOnBg:0.0}：1　{(If(Report.IsAccentOk, "合格", "偏弱"))}　(≥3.0)")
+        Return String.Join(vbCrLf, Lines)
+    End Function
+
+    Private Sub BtnPickColorUi_Click(sender As Object, e As EventArgs) Handles BtnPickColorUi.Click
+        Try
+            If FrmMain Is Nothing Then Return
+            FrmMain.StartColorPick(True)
+        Catch ex As Exception
+            Logger.Error(ex, "启动界面取色失败")
+        End Try
+    End Sub
+    Private Sub BtnPickColorScreen_Click(sender As Object, e As EventArgs) Handles BtnPickColorScreen.Click
+        Try
+            If FrmMain Is Nothing Then Return
+            FrmMain.StartColorPick(False)
+        Catch ex As Exception
+            Logger.Error(ex, "启动全屏取色失败")
+        End Try
+    End Sub
+    Private Sub BtnColorFromImage_Click(sender As Object, e As EventArgs) Handles BtnColorFromImage.Click
+        Try
+            Dim FileName As String = Dialogs.SelectFile("选择一张图片以提取主色", False,
+                filter:={({"png", "jpg", "jpeg", "bmp", "gif", "webp"}, "常用图片文件")}).FirstOrDefault()
+            If String.IsNullOrEmpty(FileName) Then Return
+            If Not ExtractDominantColor(FileName) Then
+                Hint("没能从这张图片里提取出主色", HintType.Red)
+                Return
+            End If
+            Dim Hue As Integer, Sat As Integer
+            ColorToThemeParams(DominantR, DominantG, DominantB, Hue, Sat)
+            ApplyPickedColor(Hue, Sat, $"#{DominantR:X2}{DominantG:X2}{DominantB:X2}")
+        Catch ex As Exception
+            Logger.Error(ex, "从图片提取主色失败")
+        End Try
+    End Sub
+    Private Sub BtnAutoOptimize_Click(sender As Object, e As EventArgs) Handles BtnAutoOptimize.Click
+        Try
+            Dim Hue As Integer = SliderLauncherHue.Value
+            Dim Sat As Integer = SliderLauncherSat.Value
+            Dim Current As Integer = SliderLauncherLight.Value - 20
+            Dim Improved As Boolean = False
+            Dim Best As Integer = AutoOptimizeLightAdjust(Hue, Sat, Current, Improved)
+            If Not Improved Then
+                MyMsgBox("当前配色的明暗对比已经很不错了，不需要调整。" & vbCrLf & vbCrLf &
+                         ContrastSummary(Hue, Sat, Current), "自动优化配色")
+                Return
+            End If
+            Dim Before As String = ContrastSummary(Hue, Sat, Current)
+            _ProfileApplying = True
+            SyncingThemeSliders = True
+            AniControlEnabled += 1
+            Try
+                SliderLauncherLight.Value = (Best + 20).Clamp(0, 40)
+            Finally
+                AniControlEnabled -= 1
+                SyncingThemeSliders = False
+                _ProfileApplying = False
+            End Try
+            If Settings.Get(Of Integer)("UiLauncherTheme") <> 14 Then RadioLauncherTheme14.Checked = True
+            SettingService.SaveSetting(SliderLauncherLight)
+            ThemeRefresh()
+            MyMsgBox($"已把亮度微调从 {Current} 调整为 {Best}。" & vbCrLf & vbCrLf &
+                     "调整前：" & vbCrLf & Before & vbCrLf & vbCrLf &
+                     "调整后：" & vbCrLf & ContrastSummary(Hue, Sat, Best),
+                     "自动优化配色")
+        Catch ex As Exception
+            Logger.Error(ex, "自动优化配色失败")
+        End Try
+    End Sub
+
+#End Region
 
 #Region "功能隐藏"
 
@@ -622,6 +1056,11 @@ Refresh:
         End Function
         SliderBackgroundOpacity.GetHintText = Function(v) Math.Round(v * 0.1) & "%"
         SliderBackgroundBlur.GetHintText = Function(v) v & " 像素"
+        SliderBackgroundScale.GetHintText = Function(v) v & "%"
+        SliderBackgroundScaleW.GetHintText = Function(v) v & "%"
+        SliderBackgroundScaleH.GetHintText = Function(v) v & "%"
+        SliderBackgroundOffsetX.GetHintText = Function(v) (v - 500) & " 像素"
+        SliderBackgroundOffsetY.GetHintText = Function(v) (v - 500) & " 像素"
     End Sub
 
 End Class

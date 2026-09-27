@@ -135,12 +135,22 @@ Public Class Settings
         New Setting("UiLauncherTheme", 0, OnChanged:=AddressOf ThemeRefresh),
         New Setting("UiLauncherThemeHide", "0|1|2|3|4", Source:=Sources.Registry, Encrypted:=True),
         New Setting("UiLauncherThemeHide2", "0|1|2|3|4", Source:=Sources.Registry, Encrypted:=True),
+        New Setting("UiLauncherColorProfiles", ""), '已保存的自定义配色方案，格式见 ModSecret.ColorProfile
+        New Setting("UiLauncherColorProfileIndex", -1), '当前选中的配色方案下标，-1 表示没有
         New Setting("UiLauncherLogo", True),
         New Setting("UiLauncherEmail", False),
         New Setting("UiBackgroundColorful", True, OnChanged:=Sub() ThemeRefresh()), '不传入参数
         New Setting("UiBackgroundOpacity", 1000, OnChanged:=AddressOf FormMain.UpdateBackgroundAndTitleBar),
         New Setting("UiBackgroundBlur", 0, OnChanged:=AddressOf FormMain.UpdateBackgroundAndTitleBar),
         New Setting("UiBackgroundSuit", 0, OnChanged:=AddressOf FormMain.UpdateBackgroundAndTitleBar),
+        New Setting("UiBackgroundScale", 100, OnChanged:=AddressOf FormMain.UpdateBackgroundAndTitleBar), '背景图片整体缩放百分比
+        New Setting("UiBackgroundScaleW", 100, OnChanged:=AddressOf FormMain.UpdateBackgroundAndTitleBar), '背景图片宽度比例百分比
+        New Setting("UiBackgroundScaleH", 100, OnChanged:=AddressOf FormMain.UpdateBackgroundAndTitleBar), '背景图片高度比例百分比
+        New Setting("UiBackgroundOffsetX", 0, OnChanged:=AddressOf FormMain.UpdateBackgroundAndTitleBar), '背景图片水平位移（像素）
+        New Setting("UiBackgroundOffsetY", 0, OnChanged:=AddressOf FormMain.UpdateBackgroundAndTitleBar), '背景图片垂直位移（像素）
+        New Setting("UiBackgroundAspectLock", True, OnChanged:=AddressOf FormMain.UpdateBackgroundAndTitleBar), '背景图片是否锁定宽高比例
+        New Setting("UiBackgroundClip", True, OnChanged:=AddressOf FormMain.UpdateBackgroundAndTitleBar), '背景图片是否裁剪超出窗口的部分
+        New Setting("UiBackgroundPreview", False, OnChanged:=AddressOf PageSetupUI.BackgroundPreviewRefresh), '是否收起其它设置卡片，只留背景图片卡片边调边看
         New Setting("UiCustomType", 0, OnChanged:=AddressOf PageSetupUI.OnMainPageTypeChanged),
         New Setting("UiCustomPreset", 0),
         New Setting("UiCustomNet", ""),

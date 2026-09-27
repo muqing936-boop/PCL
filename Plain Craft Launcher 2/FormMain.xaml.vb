@@ -1,6 +1,11 @@
 Imports System.ComponentModel
 Imports System.Windows.Interop
 
+'取色需要 System.Drawing 与 WinForms 的 Screen，但不能直接 Imports System.Drawing——
+'那会让 LinearGradientBrush 等 WPF 类型解析到 GDI+ 版本。用别名限定，避免污染。
+Imports Draw = System.Drawing
+Imports WinForms = System.Windows.Forms
+
 Public Class FormMain
 
 #Region "基础"
@@ -640,7 +645,224 @@ Public Class FormMain
         PanForm.Height = BorderForm.ActualHeight + 0.001
         PanMain.Width = PanForm.Width
         PanMain.Height = Math.Max(0, PanForm.Height - PanTitle.ActualHeight)
+        '窗口尺寸变化后重新计算背景裁剪框，否则裁剪区域会停留在旧尺寸
+        RefreshBackgroundTransform()
         If WindowState = WindowState.Maximized Then WindowState = WindowState.Normal '修复 #1938
+    End Sub
+
+    ''' <summary>
+    ''' 背景预览浮动条：预览模式下显示，用来在收起所有设置卡片后继续调整背景图片。
+    ''' 只在「个性化」设置页可见 —— 离开该页就没有预览的意义了。
+    ''' </summary>
+    Public Sub RefreshBackgroundPreviewPanel()
+        Try
+            If PanBgPreview Is Nothing Then Return
+            Dim IsSetupUiPage As Boolean = PageCurrent = PageType.Setup AndAlso FrmSetupLeft IsNot Nothing AndAlso FrmSetupLeft.PageID = PageSubType.SetupUI
+            If Not IsSetupUiPage AndAlso Settings.Get(Of Boolean)("UiBackgroundPreview") Then
+                '离开了「个性化」页：浮动条会收起来，若不同时退出预览，
+                '下设置卡片和导航会一直保持隐藏，变成一个奇怪的状态
+                Settings.Set("UiBackgroundPreview", False)
+                PageSetupUI.BackgroundPreviewRefresh()
+            End If
+            Dim Show As Boolean = Settings.Get(Of Boolean)("UiBackgroundPreview") AndAlso IsSetupUiPage
+            If Show Then
+                '把当前设置值同步到浮动条的滑条上（位移需要 0~1000 的映射）
+                AniControlEnabled += 1
+                Try
+                    SliderBgPrevOffsetX.Value = (Settings.Get(Of Integer)("UiBackgroundOffsetX") + 500).Clamp(0, 1000)
+                    SliderBgPrevOffsetY.Value = (Settings.Get(Of Integer)("UiBackgroundOffsetY") + 500).Clamp(0, 1000)
+                Finally
+                    AniControlEnabled -= 1
+                End Try
+                '锁定宽高比例时隐藏宽度/高度两行
+                Dim IsLock As Boolean = Settings.Get(Of Boolean)("UiBackgroundAspectLock")
+                PanBgPrevScaleW.Visibility = If(IsLock, Visibility.Collapsed, Visibility.Visible)
+                PanBgPrevScaleH.Visibility = If(IsLock, Visibility.Collapsed, Visibility.Visible)
+            End If
+            PanBgPreview.Visibility = If(Show, Visibility.Visible, Visibility.Collapsed)
+        Catch ex As Exception
+            Logger.Error(ex, "刷新背景预览浮动条失败")
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 浮动条上的位移滑条：没有绑定 SettingService.Key（滑块不支持负数），手动映射保存。
+    ''' </summary>
+    Private Sub SliderBgPrevOffset_Change() Handles SliderBgPrevOffsetX.Change, SliderBgPrevOffsetY.Change
+        If AniControlEnabled <> 0 Then Return
+        Try
+            Settings.Set("UiBackgroundOffsetX", SliderBgPrevOffsetX.Value - 500)
+            Settings.Set("UiBackgroundOffsetY", SliderBgPrevOffsetY.Value - 500)
+        Catch ex As Exception
+            Logger.Error(ex, "保存背景图片位移设置失败")
+        End Try
+    End Sub
+
+    Private Sub CheckBgPrevAspectLock_Change() Handles CheckBgPrevAspectLock.Change
+        RefreshBackgroundPreviewPanel()
+    End Sub
+
+    Private Sub BtnBgPreviewResetOffset_Click() Handles BtnBgPreviewResetOffset.Click
+        Try
+            AniControlEnabled += 1
+            Try
+                SliderBgPrevOffsetX.Value = 500
+                SliderBgPrevOffsetY.Value = 500
+            Finally
+                AniControlEnabled -= 1
+            End Try
+            Settings.Set("UiBackgroundOffsetX", 0)
+            Settings.Set("UiBackgroundOffsetY", 0)
+            Hint("背景图片位移已归零", HintType.Green)
+        Catch ex As Exception
+            Logger.Error(ex, "重置背景图片位移失败")
+        End Try
+    End Sub
+
+    Private Sub BtnBgPreviewExit_Click() Handles BtnBgPreviewExit.Click
+        Try
+            Settings.Set("UiBackgroundPreview", False)
+            RefreshBackgroundPreviewPanel()
+            '同步设置页里的复选框与卡片显示
+            PageSetupUI.BackgroundPreviewRefresh()
+        Catch ex As Exception
+            Logger.Error(ex, "退出背景预览失败")
+        End Try
+    End Sub
+
+    '背景取色
+
+    Private _PickBmp As Draw.Bitmap = Nothing
+    Private _PickOnlyInWindow As Boolean = False
+
+    ''' <summary>
+    ''' 最近一次取到的颜色，0~255。
+    ''' </summary>
+    Public PickedR As Integer = 0
+    Public PickedG As Integer = 0
+    Public PickedB As Integer = 0
+    ''' <summary>是否取到了有效颜色（用户点了确定，而不是按 Esc 取消）。</summary>
+    Public PickedValid As Boolean = False
+
+    ''' <summary>
+    ''' 开始取色。OnlyInWindow = True 时只允许取启动器界面内部的像素。
+    '''
+    ''' 做法是先整屏截一张图，之后鼠标移动都从这张图上采样 ——
+    ''' 既避免了连续截屏的性能问题，也能让放大镜显示真实的屏幕像素。
+    ''' </summary>
+    Public Sub StartColorPick(OnlyInWindow As Boolean)
+        Try
+            If _PickBmp IsNot Nothing Then Return
+            '先用逻辑坐标铺满，稍后按真实 DPI 重算
+            PanColorPick.Width = Width
+            PanColorPick.Height = Height
+            PanColorPick.Visibility = Visibility.Visible
+            PanColorPick.Focus()
+            _PickOnlyInWindow = OnlyInWindow
+            Try
+                _PickBmp = New Draw.Bitmap(WinForms.Screen.PrimaryScreen.Bounds.Width, WinForms.Screen.PrimaryScreen.Bounds.Height)
+                Using g As Draw.Graphics = Draw.Graphics.FromImage(_PickBmp)
+                    g.CopyFromScreen(0, 0, 0, 0, _PickBmp.Size)
+                End Using
+            Catch ex As Exception
+                Logger.Warn(ex, "截屏失败，取色不可用")
+                EndColorPick(False)
+                Return
+            End Try
+            UpdateColorPickPreview()
+        Catch ex As Exception
+            Logger.Error(ex, "启动取色失败")
+            EndColorPick(False)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 结束取色并释放截图。
+    ''' </summary>
+    Public Sub EndColorPick(Valid As Boolean)
+        Try
+            PanColorPick.Visibility = Visibility.Collapsed
+            PickedValid = Valid AndAlso PickedR >= 0
+            If _PickBmp IsNot Nothing Then
+                _PickBmp.Dispose()
+                _PickBmp = Nothing
+            End If
+        Catch ex As Exception
+            Logger.Error(ex, "结束取色失败")
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 把物理像素坐标换算成截图里的下标。
+    ''' 取色板是逻辑单位，鼠标位置要先乘上 DPI 缩放才是物理像素。
+    ''' </summary>
+    Private Function PickPointToPixel(P As Point) As Draw.Point
+        Dim Scale As Double = GetPixelSize(1)
+        Return New Draw.Point(CInt(P.X * Scale), CInt(P.Y * Scale))
+    End Function
+
+    Private Sub PanColorPick_MouseMove(sender As Object, e As MouseEventArgs) Handles PanColorPick.MouseMove
+        UpdateColorPickPreview()
+    End Sub
+
+    Private Sub UpdateColorPickPreview()
+        Try
+            If _PickBmp Is Nothing Then Return
+            Dim Pos As Point = Mouse.GetPosition(PanColorPick)
+            Dim Pt As Draw.Point = PickPointToPixel(Pos)
+            '界面取色时限制在窗口范围内，越界就不更新预览
+            If _PickOnlyInWindow Then
+                Dim Scale As Double = GetPixelSize(1)
+                If Pt.X < 0 OrElse Pt.Y < 0 OrElse Pt.X >= CInt(ActualWidth * Scale) OrElse Pt.Y >= CInt(ActualHeight * Scale) Then Return
+            End If
+            If Pt.X < 0 OrElse Pt.Y < 0 OrElse Pt.X >= _PickBmp.Width OrElse Pt.Y >= _PickBmp.Height Then Return
+            Dim Col As Draw.Color = _PickBmp.GetPixel(Pt.X, Pt.Y)
+            PickedR = Col.R
+            PickedG = Col.G
+            PickedB = Col.B
+            Dim Hex As String = $"#{Col.R:X2}{Col.G:X2}{Col.B:X2}"
+            RectColorPickSwatch.Background = New SolidColorBrush(Color.FromRgb(Col.R, Col.G, Col.B))
+            LabColorPickHex.Text = Hex
+            LabColorPickHint.Text = If(_PickOnlyInWindow, "界面取色　点击确认　Esc 取消", "全屏取色　点击确认　Esc 取消")
+            '放大镜跟着鼠标走，并避免贴到窗口边缘外面
+            Dim OffX As Double = Pos.X + 18
+            Dim OffY As Double = Pos.Y + 18
+            If OffX + PanColorPickBox.ActualWidth > PanColorPick.ActualWidth Then OffX = Math.Max(0, Pos.X - PanColorPickBox.ActualWidth - 18)
+            If OffY + PanColorPickBox.ActualHeight > PanColorPick.ActualHeight Then OffY = Math.Max(0, Pos.Y - PanColorPickBox.ActualHeight - 18)
+            Canvas.SetLeft(PanColorPickBox, OffX)
+            Canvas.SetTop(PanColorPickBox, OffY)
+        Catch ex As Exception
+            Logger.Warn(ex, "刷新取色预览失败")
+        End Try
+    End Sub
+
+    Private Sub PanColorPick_MouseLeftButtonUp(sender As Object, e As MouseButtonEventArgs) Handles PanColorPick.MouseLeftButtonUp
+        Try
+            If _PickBmp Is Nothing Then Return
+            Dim Pos As Point = Mouse.GetPosition(PanColorPick)
+            Dim Pt As Draw.Point = PickPointToPixel(Pos)
+            If _PickOnlyInWindow Then
+                Dim Scale As Double = GetPixelSize(1)
+                If Pt.X < 0 OrElse Pt.Y < 0 OrElse Pt.X >= CInt(ActualWidth * Scale) OrElse Pt.Y >= CInt(ActualHeight * Scale) Then Return
+            End If
+            If Pt.X < 0 OrElse Pt.Y < 0 OrElse Pt.X >= _PickBmp.Width OrElse Pt.Y >= _PickBmp.Height Then Return
+            Dim Col As Draw.Color = _PickBmp.GetPixel(Pt.X, Pt.Y)
+            PickedR = Col.R
+            PickedG = Col.G
+            PickedB = Col.B
+            EndColorPick(True)
+            '取完把结果交给设置页去换算并套用
+            PageSetupUI.OnColorPicked()
+        Catch ex As Exception
+            Logger.Error(ex, "确认取色失败")
+            EndColorPick(False)
+        End Try
+    End Sub
+
+    Private Sub PanColorPick_KeyDown(sender As Object, e As KeyEventArgs) Handles PanColorPick.KeyDown
+        If e.Key = Key.Escape Then
+            EndColorPick(False)
+        End If
     End Sub
 
     '最小化
@@ -721,6 +943,8 @@ Public Class FormMain
                     Brush.AlignmentY = AlignmentY.Bottom
             End Select
         End If
+        '背景图片缩放、比例与位移
+        RefreshBackgroundTransform()
         '标题栏显示类型
         Select Case Settings.Get(Of Integer)("UiLogoType")
             Case 0 '无
@@ -771,6 +995,60 @@ Public Class FormMain
         LabTitleLogo.Text = Settings.Get(Of String)("UiLogoText")
         '标题栏文本是否居左
         PanTitleMain.ColumnDefinitions(0).Width = New GridLength(If(Settings.Get(Of Boolean)("UiLogoLeft") AndAlso Settings.Get(Of Integer)("UiLogoType") = 0, 0, 1), GridUnitType.Star)
+        '页面切换后同步背景预览浮动条（预览模式下所有卡片都收起了，全靠它操作）
+        RefreshBackgroundPreviewPanel()
+    End Sub
+
+    ''' <summary>
+    ''' 应用背景图片的缩放倍数、宽高比例、位移与裁剪。
+    ''' 由 UpdateBackgroundAndTitleBar 与窗口尺寸变化共同调用。
+    ''' </summary>
+    Public Sub RefreshBackgroundTransform()
+        If ImgBack Is Nothing OrElse PanForm Is Nothing Then Return
+        Try
+            Dim BaseScale As Double = Settings.Get(Of Integer)("UiBackgroundScale") / 100
+            Dim ScaleX As Double = BaseScale
+            Dim ScaleY As Double = BaseScale
+            Dim W As Integer = Settings.Get(Of Integer)("UiBackgroundScaleW")
+            Dim H As Integer = Settings.Get(Of Integer)("UiBackgroundScaleH")
+            '解锁宽高比例后才让宽/高百分比生效，避免与"整体缩放"互相打架
+            If Not Settings.Get(Of Boolean)("UiBackgroundAspectLock") AndAlso (W <> 100 OrElse H <> 100) Then
+                ScaleX = ScaleX * W / 100
+                ScaleY = ScaleY * H / 100
+            End If
+            '兜底，避免 0 或负数导致背景消失
+            ScaleX = Math.Max(0.05, ScaleX)
+            ScaleY = Math.Max(0.05, ScaleY)
+            Dim OffsetX As Double = Settings.Get(Of Integer)("UiBackgroundOffsetX")
+            Dim OffsetY As Double = Settings.Get(Of Integer)("UiBackgroundOffsetY")
+            '先缩放，再平移，保证位移不会被缩放放大
+            Dim Tg As New TransformGroup
+            Tg.Children.Add(New ScaleTransform(ScaleX, ScaleY))
+            Tg.Children.Add(New TranslateTransform(OffsetX, OffsetY))
+            ImgBack.RenderTransform = Tg
+            '以中心为基准缩放
+            ImgBack.RenderTransformOrigin = New Point(0.5, 0.5)
+            '是否裁剪超出窗口的部分
+            '注意：Clip 是在元素自身的本地坐标系里定义、并随该元素的 RenderTransform 一起变换的，
+            '     所以裁剪绝不能设在 ImgBack 上（那等于把裁剪框跟着一起放大，等于没裁）。
+            '     必须设在父容器 PanForm 上：它没有变换，裁剪框才等于真正的窗口范围。
+            ImgBack.Clip = Nothing
+            If Settings.Get(Of Boolean)("UiBackgroundClip") Then
+                '窗口尚未加载时 ActualWidth/ActualHeight 可能为 0，此时跳过设置，
+                '避免把裁剪区域设成 0 尺寸导致整块内容消失。
+                Dim ClipWidth As Double = PanForm.ActualWidth
+                Dim ClipHeight As Double = PanForm.ActualHeight
+                If ClipWidth > 0 AndAlso ClipHeight > 0 Then
+                    PanForm.Clip = New RectangleGeometry(New Rect(0, 0, ClipWidth, ClipHeight))
+                Else
+                    PanForm.Clip = Nothing
+                End If
+            Else
+                PanForm.Clip = Nothing
+            End If
+        Catch ex As Exception
+            Logger.Warn(ex, "应用背景图片缩放与位移失败", LogBehavior.Toast)
+        End Try
     End Sub
 
 #End Region

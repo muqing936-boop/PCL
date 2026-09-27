@@ -165,7 +165,106 @@
                         </Border>
                     </Border>
                 </Grid>
+                <!-- 取色放大镜：开始取色时铺满窗口并置顶，鼠标移动实时显示光标下的放大像素与颜色，
+                     点击即选中、Esc 取消。界面取色和全屏取色共用它，只是采样区域不同。 -->
+                <Canvas x:Name="PanColorPick" Grid.RowSpan="2" Panel.ZIndex="200" Background="#01000000"
+                        Cursor="Cross" Visibility="Collapsed" Focusable="True">
+                    <Border x:Name="PanColorPickBox" Canvas.Left="20" Canvas.Top="20"
+                            Background="{DynamicResource ColorBrushBackgroundTransparentSidebar}" CornerRadius="6"
+                            BorderBrush="{DynamicResource ColorBrush4}" BorderThickness="1" Padding="10">
+                        <StackPanel Orientation="Horizontal">
+                            <Border x:Name="RectColorPickSwatch" Width="56" Height="56" CornerRadius="4"
+                                    BorderBrush="{DynamicResource ColorBrush1}" BorderThickness="1" Background="#FFFFFFFF" />
+                            <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                                <TextBlock x:Name="LabColorPickHex" Text="#FFFFFF" FontSize="15" FontWeight="Bold"
+                                           Foreground="{DynamicResource ColorBrush1}" />
+                                <TextBlock x:Name="LabColorPickHint" Text="点击取色　Esc 取消" FontSize="11" Margin="0,4,0,0"
+                                           Foreground="{DynamicResource ColorBrush2}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Canvas>
                 <StackPanel x:Name="PanHint" IsHitTestVisible="False" UseLayoutRounding="True" SnapsToDevicePixels="True" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="0,0,0,20" Grid.RowSpan="2" />
+                <!-- 背景预览浮动条：预览模式下所有设置卡片都会收起，靠这条贴在左下角的小面板
+                     调整背景图片，做到既能看到整张背景、又能边调边看。
+                     高度只有三行，尽量少挡图。 -->
+                <Border x:Name="PanBgPreview" Grid.Row="1" Panel.ZIndex="60" Visibility="Collapsed"
+                        HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="14,0,0,14"
+                        Background="{DynamicResource ColorBrushBackgroundTransparentSidebar}" CornerRadius="6"
+                        BorderBrush="{DynamicResource ColorBrush4}" BorderThickness="1" Padding="12,10">
+                    <Border.Effect>
+                        <DropShadowEffect Color="{DynamicResource ColorObject1}" BlurRadius="14" ShadowDepth="2" Opacity="0.45" RenderingBias="Performance" />
+                    </Border.Effect>
+                    <StackPanel>
+                        <TextBlock Text="背景预览 · 边调边看" FontSize="12" Foreground="{DynamicResource ColorBrush3}" Margin="0,0,0,8" />
+                        <Grid Height="22" Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="58" />
+                                <ColumnDefinition Width="168" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="缩放" VerticalAlignment="Center" Foreground="{DynamicResource ColorBrush2}" FontSize="12" />
+                            <local:MySlider x:Name="SliderBgPrevScale" Grid.Column="1" MaxValue="400" ValueByKey="5" local:SettingService.Key="UiBackgroundScale" />
+                        </Grid>
+                        <Grid x:Name="PanBgPrevScaleW" Height="22" Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="58" />
+                                <ColumnDefinition Width="168" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="宽度比例" VerticalAlignment="Center" Foreground="{DynamicResource ColorBrush2}" FontSize="12" />
+                            <local:MySlider x:Name="SliderBgPrevScaleW" Grid.Column="1" MaxValue="400" ValueByKey="5" local:SettingService.Key="UiBackgroundScaleW" />
+                        </Grid>
+                        <Grid x:Name="PanBgPrevScaleH" Height="22" Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="58" />
+                                <ColumnDefinition Width="168" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="高度比例" VerticalAlignment="Center" Foreground="{DynamicResource ColorBrush2}" FontSize="12" />
+                            <local:MySlider x:Name="SliderBgPrevScaleH" Grid.Column="1" MaxValue="400" ValueByKey="5" local:SettingService.Key="UiBackgroundScaleH" />
+                        </Grid>
+                        <Grid Height="22" Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="58" />
+                                <ColumnDefinition Width="168" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="不透明度" VerticalAlignment="Center" Foreground="{DynamicResource ColorBrush2}" FontSize="12" />
+                            <local:MySlider x:Name="SliderBgPrevOpacity" Grid.Column="1" MaxValue="1000" ValueByKey="10" local:SettingService.Key="UiBackgroundOpacity" />
+                        </Grid>
+                        <Grid Height="22" Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="58" />
+                                <ColumnDefinition Width="168" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="背景模糊" VerticalAlignment="Center" Foreground="{DynamicResource ColorBrush2}" FontSize="12" />
+                            <local:MySlider x:Name="SliderBgPrevBlur" Grid.Column="1" MaxValue="40" local:SettingService.Key="UiBackgroundBlur" />
+                        </Grid>
+                        <Grid Height="22" Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="58" />
+                                <ColumnDefinition Width="168" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="水平位移" VerticalAlignment="Center" Foreground="{DynamicResource ColorBrush2}" FontSize="12" />
+                            <local:MySlider x:Name="SliderBgPrevOffsetX" Grid.Column="1" MaxValue="1000" ValueByKey="10" ToolTip="范围 -500 ~ 500 像素" />
+                        </Grid>
+                        <Grid Height="22" Margin="0,0,0,9">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="58" />
+                                <ColumnDefinition Width="168" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="垂直位移" VerticalAlignment="Center" Foreground="{DynamicResource ColorBrush2}" FontSize="12" />
+                            <local:MySlider x:Name="SliderBgPrevOffsetY" Grid.Column="1" MaxValue="1000" ValueByKey="10" ToolTip="范围 -500 ~ 500 像素" />
+                        </Grid>
+                        <local:MyCheckBox x:Name="CheckBgPrevAspectLock" local:SettingService.Key="UiBackgroundAspectLock" Text="锁定宽高比例" Height="20" Margin="-1,0,0,8" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <local:MyButton x:Name="BtnBgPreviewResetOffset" MinWidth="104" Height="28" Text="位移归零" Padding="10,0" Margin="0,0,8,0"
+                                            ToolTip="把水平/垂直位移恢复到 0，方便重新定位" />
+                            <local:MyButton x:Name="BtnBgPreviewExit" Grid.Column="1" MinWidth="104" Height="28" Text="退出预览" Padding="10,0" ColorType="Highlight" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
                 <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Grid.Row="1" Margin="15">
                     <local:MyExtraButton x:Name="BtnExtraBack" HorizontalAlignment="Right" VerticalAlignment="Center" ToolTip="返回顶部" Visibility="Collapsed"
                                        Logo="M858.496 188.9024 173.1072 188.9024c-30.2848 0-54.8352-24.5504-54.8352-54.8352L118.272 106.6496c0-30.2848 24.5504-54.8352 54.8352-54.8352l685.3888 0c30.2848 0 54.8352 24.5504 54.8352 54.8352l0 27.4176C913.3312 164.352 888.7808 188.9024 858.496 188.9024L858.496 188.9024zM150.6048 550.8608c0 0 300.0064-240.3584 303.0272-243.328 13.9776-13.5936 31.1808-21.8624 48.8192-24.7552 1.7152-0.3072 3.4304-0.5888 5.1456-0.768 2.7392-0.3072 5.4528-0.3584 8.192-0.3328 2.7392-0.0256 5.4272 0.0256 8.1664 0.3328 1.7408 0.1792 3.4304 0.4864 5.1456 0.768 17.664 2.8928 34.8672 11.1616 48.8192 24.7552 3.0464 2.944 303.0016 243.328 303.0016 243.328 32.384 31.5136 29.6192 63.9744-2.7392 95.5136-32.3328 31.5392-75.648 2.9696-108.0064-28.544l-185.8816-147.1232 0 485.8368c0 30.3104-24.5248 54.8608-54.8352 54.8608l-27.392 0c-30.2848 0-54.8352-24.5504-54.8352-54.8608L447.232 470.7072l-185.8304 147.0976c-32.3584 31.5392-75.6992 60.1344-108.032 28.5696C121.0368 614.8352 118.272 582.3744 150.6048 550.8608L150.6048 550.8608zM150.6048 550.8608" />

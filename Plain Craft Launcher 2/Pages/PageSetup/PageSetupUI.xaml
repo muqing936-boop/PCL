@@ -25,20 +25,20 @@
                             <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left" Text="不透明度" Margin="0,0,20,0" />
                             <local:MySlider local:SettingService.Key="UiLauncherTransparent" 
                                             MaxValue="600" ValueByKey="10" Grid.ColumnSpan="5" x:Name="SliderLauncherTransparent" Grid.Column="1" />
-                            <TextBlock Grid.Row="1" VerticalAlignment="Center" Name="LabLauncherHue" Visibility="Collapsed" HorizontalAlignment="Left" Text="色调" Margin="0,10,20,0" />
+                            <TextBlock Grid.Row="1" VerticalAlignment="Center" Name="LabLauncherHue" HorizontalAlignment="Left" Text="色调" Margin="0,10,20,0" ToolTip="拖动任一滑条会自动切换到「自定义」主题" />
                             <local:MySlider local:SettingService.Key="UiLauncherHue" 
-                                            Grid.Row="1" Grid.Column="1" x:Name="SliderLauncherHue" Visibility="Collapsed" MaxValue="360" ValueByKey="10" Margin="0,10,0,0" />
-                            <TextBlock Grid.Row="2" VerticalAlignment="Center" Name="LabLauncherDelta" Visibility="Collapsed" HorizontalAlignment="Left" Text="色调渐变" Margin="0,10,20,0" />
+                                            Grid.Row="1" Grid.Column="1" x:Name="SliderLauncherHue" MaxValue="360" ValueByKey="10" Margin="0,10,0,0" />
+                            <TextBlock Grid.Row="2" VerticalAlignment="Center" Name="LabLauncherDelta" HorizontalAlignment="Left" Text="色调渐变" Margin="0,10,20,0" />
                             <local:MySlider local:SettingService.Key="UiLauncherDelta" 
-                                            Grid.Row="2" Grid.Column="1" x:Name="SliderLauncherDelta" Visibility="Collapsed" MaxValue="180" ValueByKey="5" Margin="0,10,0,0" />
-                            <TextBlock Grid.Row="1" Grid.Column="3" VerticalAlignment="Center" Name="LabLauncherSat" Visibility="Collapsed" HorizontalAlignment="Left" Text="饱和度" Margin="0,10,20,0" />
+                                            Grid.Row="2" Grid.Column="1" x:Name="SliderLauncherDelta" MaxValue="180" ValueByKey="5" Margin="0,10,0,0" />
+                            <TextBlock Grid.Row="1" Grid.Column="3" VerticalAlignment="Center" Name="LabLauncherSat" HorizontalAlignment="Left" Text="饱和度" Margin="0,10,20,0" />
                             <local:MySlider local:SettingService.Key="UiLauncherSat" 
-                                            Grid.Row="1" Grid.Column="4" x:Name="SliderLauncherSat" Visibility="Collapsed" MaxValue="100" ValueByKey="5" Margin="0,10,0,0" />
-                            <TextBlock Grid.Row="2" Grid.Column="3" VerticalAlignment="Center" Name="LabLauncherLight" Visibility="Collapsed" HorizontalAlignment="Left" Text="亮度" Margin="0,10,20,0" />
+                                            Grid.Row="1" Grid.Column="4" x:Name="SliderLauncherSat" MaxValue="100" ValueByKey="5" Margin="0,10,0,0" />
+                            <TextBlock Grid.Row="2" Grid.Column="3" VerticalAlignment="Center" Name="LabLauncherLight" HorizontalAlignment="Left" Text="亮度" Margin="0,10,20,0" />
                             <local:MySlider local:SettingService.Key="UiLauncherLight" 
-                                            Grid.Row="2" Grid.Column="4" x:Name="SliderLauncherLight" Visibility="Collapsed" MaxValue="40" ValueByKey="5" Margin="0,10,0,0" />
+                                            Grid.Row="2" Grid.Column="4" x:Name="SliderLauncherLight" MaxValue="40" ValueByKey="5" Margin="0,10,0,0" />
                         </Grid>
-                        <Grid x:Name="PanLauncherTheme" Height="90" Margin="0,0,0,7">
+                        <Grid x:Name="PanLauncherTheme" Height="124" Margin="0,0,0,7">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" SharedSizeGroup="Name1" />
                                 <ColumnDefinition />
@@ -46,8 +46,10 @@
                                 <ColumnDefinition />
                                 <ColumnDefinition />
                                 <ColumnDefinition />
+                                <ColumnDefinition />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
+                                <RowDefinition />
                                 <RowDefinition />
                                 <RowDefinition />
                                 <RowDefinition />
@@ -65,44 +67,103 @@
                             <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="4" 
                                               Grid.Column="5" Grid.Row="0" Text="橡木棕" x:Name="RadioLauncherTheme4" />
                             <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="5" 
-                                              Grid.Column="1" Grid.Row="1" Text="玄素黑" x:Name="RadioLauncherTheme5" Opacity="0" ToolTip="灰色是个谎言" />
-                            <local:MyRadioBox Grid.Column="1" Grid.Row="1" Text="玄素黑" x:Name="RadioLauncherTheme5Gray" IsEnabled="False" Opacity="1" />
-                            <TextBlock Grid.Column="1" Grid.Row="1" x:Name="LabLauncherTheme5Unlock" Background="{StaticResource ColorBrushSemiTransparent}" ToolTip="灰色是个谎言" />
+                                              Grid.Column="1" Grid.Row="1" Text="玄素黑" x:Name="RadioLauncherTheme5" ToolTip="灰色是个谎言" />
                             <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="12" 
-                                              Grid.Column="2" Grid.Row="1" Text="滑稽彩" x:Name="RadioLauncherTheme12" IsEnabled="False" ToolTip="滑稽树上滑稽果，滑稽树下你和我，滑稽之日搞事情，欢乐多又多" ToolTipService.ShowOnDisabled="True" />
+                                              Grid.Column="2" Grid.Row="1" Text="滑稽彩" x:Name="RadioLauncherTheme12" ToolTip="滑稽树上滑稽果，滑稽树下你和我，滑稽之日搞事情，欢乐多又多" />
                             <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="6" 
-                                              Grid.Column="3" Grid.Row="1" Text="铁杆粉" x:Name="RadioLauncherTheme6" IsEnabled="False" ToolTip="99 次重逢的喜悦" ToolTipService.ShowOnDisabled="True" />
+                                              Grid.Column="3" Grid.Row="1" Text="铁杆粉" x:Name="RadioLauncherTheme6" ToolTip="99 次重逢的喜悦" />
                             <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="7" 
-                                              Grid.Column="4" Grid.Row="1" Text="神秘紫" x:Name="RadioLauncherTheme7" IsEnabled="False" ToolTip="072 101 108 112 032 068 101 118 032 048 046 052 046 052" ToolTipService.ShowOnDisabled="True" />
+                                              Grid.Column="4" Grid.Row="1" Text="神秘紫" x:Name="RadioLauncherTheme7" ToolTip="072 101 108 112 032 068 101 118 032 048 046 052 046 052" />
                             <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="13" 
-                                              Grid.Column="5" Grid.Row="1" Text="欧皇彩" x:Name="RadioLauncherTheme13" IsEnabled="False" ToolTip="这就是传说中的欧皇了吧" ToolTipService.ShowOnDisabled="True" />
+                                              Grid.Column="5" Grid.Row="1" Text="欧皇彩" x:Name="RadioLauncherTheme13" ToolTip="这就是传说中的欧皇了吧" />
                             <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="8" 
-                                              Grid.Column="1" Grid.Row="2" Text="秋仪金" x:Name="RadioLauncherTheme8" IsEnabled="False" />
-                            <TextBlock Grid.Column="1" Grid.Row="2" x:Name="LabLauncherTheme8Copy" Background="{StaticResource ColorBrushSemiTransparent}" />
+                                              Grid.Column="1" Grid.Row="2" Text="秋仪金" x:Name="RadioLauncherTheme8" />
                             <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="9" 
-                                              Grid.Column="2" Grid.Row="2" Text="活跃橙" x:Name="RadioLauncherTheme9" IsEnabled="False" />
-                            <TextBlock Grid.Column="2" Grid.Row="2" x:Name="LabLauncherTheme9Copy" Background="{StaticResource ColorBrushSemiTransparent}" />
+                                              Grid.Column="2" Grid.Row="2" Text="活跃橙" x:Name="RadioLauncherTheme9" />
                             <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="10" 
-                                              Grid.Column="3" Grid.Row="2" Text="跳票红" x:Name="RadioLauncherTheme10" IsEnabled="False" ToolTip="进行一次正版登录，支持正版游戏！" ToolTipService.ShowOnDisabled="True" />
+                                              Grid.Column="3" Grid.Row="2" Text="跳票红" x:Name="RadioLauncherTheme10" ToolTip="进行一次正版登录，支持正版游戏！" />
                             <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="11" 
-                                              Grid.Column="4" Grid.Row="2" Text="极客蓝" x:Name="RadioLauncherTheme11" IsEnabled="False" ToolTip="右键打开解密游戏入口" />
-                            <TextBlock Grid.Column="4" Grid.Row="2" x:Name="LabLauncherTheme11Click" Background="{StaticResource ColorBrushSemiTransparent}" />
+                                              Grid.Column="4" Grid.Row="2" Text="极客蓝" x:Name="RadioLauncherTheme11" />
                             <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="14" 
-                                              Grid.Column="5" Grid.Row="2" Text="自定义" x:Name="RadioLauncherTheme14" IsEnabled="False" ToolTip="需要解锁五个隐藏主题" ToolTipService.ShowOnDisabled="True" />
+                                              Grid.Column="5" Grid.Row="2" Text="自定义" x:Name="RadioLauncherTheme14" />
+                            <!-- 开源版新增主题（ID 15~19，名称与 ModSecret 的主题表一致） -->
+                            <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="15"
+                                              Grid.Column="6" Grid.Row="0" Text="深海蓝" x:Name="RadioLauncherTheme15" />
+                            <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="16"
+                                              Grid.Column="6" Grid.Row="1" Text="樱花粉" x:Name="RadioLauncherTheme16" />
+                            <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="17"
+                                              Grid.Column="6" Grid.Row="2" Text="薰衣紫" x:Name="RadioLauncherTheme17" />
+                            <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="18"
+                                              Grid.Column="1" Grid.Row="3" Text="曜石青" x:Name="RadioLauncherTheme18" />
+                            <local:MyRadioBox local:SettingService.Key="UiLauncherTheme" local:SettingService.Value="19"
+                                              Grid.Column="2" Grid.Row="3" Text="抹茶绿" x:Name="RadioLauncherTheme19" />
                         </Grid>
                         <local:MyCheckBox local:SettingService.Key="UiLauncherLogo" Text="打开启动器时显示 PCL 图标" Margin="-1,0,0,1" Height="22" />
+                        <!-- 取色：吸到的颜色会换算成色相/饱和度填进上面四个滑条并立即生效 -->
+                        <Grid Height="35" Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <local:MyButton x:Name="BtnPickColorUi" MinWidth="112" Text="界面取色" Padding="12,0" Margin="0,0,10,0"
+                                            ToolTip="鼠标变成十字后，移动鼠标即可预览光标下的色块，点击确认、Esc 取消。只能取启动器界面内的颜色。" />
+                            <local:MyButton x:Name="BtnPickColorScreen" Grid.Column="1" MinWidth="112" Text="全屏取色" Padding="12,0" Margin="0,0,10,0"
+                                            ToolTip="同上，但可以取屏幕上任何位置的颜色，包括其它软件和壁纸。" />
+                            <local:MyButton x:Name="BtnColorFromImage" Grid.Column="2" MinWidth="112" Text="从图片取主色" Padding="12,0" Margin="0,0,10,0"
+                                            ToolTip="选一张图片，自动提取最能代表它的主色作为主题色。" />
+                            <local:MyButton x:Name="BtnAutoOptimize" Grid.Column="3" MinWidth="112" Text="自动优化配色" Padding="12,0" ColorType="Highlight"
+                                            ToolTip="按当前配色做一次明暗对比体检，自动挑一组更清晰的颜色。" />
+                        </Grid>
                     </StackPanel>
-                    <Border Background="#DDDDDDDD" Margin="-8,23,-5,28" CornerRadius="4" Name="PanLauncherHide" Visibility="Collapsed">
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Text="如果可以小小赞助一下 PCL，就能解锁主题颜色更换功能啦……&#xa;多亏了大家的支持，PCL 才能在免费、无任何广告的情况下维持数年的更新（磕头）！" FontSize="13" Margin="0,0,0,0" />
-                            <local:MyButton Height="32" MinWidth="140" Text="支持 PCL 开发！" Padding="13,0" HorizontalAlignment="Center" Margin="0,9,0,0" ColorType="Highlight"
-                                            local:CustomEventService.EventType="打开网页" local:CustomEventService.EventData="https://meloong.com/afd/a/LTCat" />
-                        </StackPanel>
-                    </Border>
                 </Grid>
+            </local:MyCard>
+            <!-- 赞助提示：原版是盖在整个「基础」卡片上的一层半透明遮罩（PanLauncherHide），
+                 在主题需要解锁的正式版里用来引导赞助。
+                 开源版 20 个主题全部可直接选择，遮罩继续盖住主题网格只会挡住点击，
+                 所以改为一张独立卡片放在「基础」下方：赞助入口保留，主题网格不再被遮挡。 -->
+            <local:MyCard x:Name="CardLauncherHide" Margin="0,0,0,15" Title="支持 PCL" Visibility="Collapsed">
+                <StackPanel Margin="25,40,25,22" HorizontalAlignment="Center">
+                    <TextBlock Text="PCL 是免费、无广告、持续更新多年的开源启动器。&#xa;如果可以小小赞助一下作者，就是对他最大的支持（磕头）！" FontSize="13" TextWrapping="Wrap" HorizontalAlignment="Center" />
+                    <local:MyButton Height="32" MinWidth="140" Text="支持 PCL 开发！" Padding="13,0" HorizontalAlignment="Center" Margin="0,12,0,0" ColorType="Highlight"
+                                    local:CustomEventService.EventType="打开网页" local:CustomEventService.EventData="https://meloong.com/afd/a/LTCat" />
+                </StackPanel>
+            </local:MyCard>
+            <!-- 自定义配色方案：把「自定义」主题当前调好的颜色存成多套，随时切换回来。
+                 整套逻辑写在代码后置里（不用 MyComboBox 装载动态项），避免设置项与动态列表打架。 -->
+            <local:MyCard x:Name="CardColorProfile" Margin="0,0,0,15" Title="自定义配色方案">
+                <StackPanel Margin="25,40,25,20">
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="Name1" />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left" Text="当前配色" Margin="0,0,20,0" />
+                        <TextBlock x:Name="LabColorProfile" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left"
+                                   Text="还没有保存过配色方案" Foreground="{DynamicResource ColorBrush4}" />
+                    </Grid>
+                    <StackPanel Orientation="Horizontal">
+                        <local:MyButton x:Name="BtnProfilePrev" MinWidth="64" Text="上一套" Padding="12,0" Margin="0,0,10,0" />
+                        <local:MyButton x:Name="BtnProfileNext" MinWidth="64" Text="下一套" Padding="12,0" Margin="0,0,10,0" />
+                        <local:MyButton x:Name="BtnProfileApply" MinWidth="88" Text="应用该配色" Padding="12,0" Margin="0,0,10,0"
+                                        ToolTip="把选中的配色写回下面的四个滑条并立即生效" />
+                        <local:MyButton x:Name="BtnProfileOverwrite" MinWidth="88" Text="覆盖保存" Padding="12,0" Margin="0,0,10,0"
+                                        ToolTip="把你微调后的当前颜色存回选中的这套配色" />
+                        <local:MyButton x:Name="BtnProfileSaveAs" MinWidth="112" Text="另存为新方案" Padding="12,0" Margin="0,0,10,0" ColorType="Highlight"
+                                        ToolTip="把当前四个滑条的颜色保存成一套新配色，原来的方案保留" />
+                        <local:MyButton x:Name="BtnProfileDelete" MinWidth="64" Text="删除" Padding="12,0" ColorType="Red" />
+                    </StackPanel>
+                    <TextBlock Text="选中的配色会自动应用到「自定义」主题上。之后你拖动上面四个滑条微调颜色时，这套配色不会被自动改写 —— 想保留改动请点「另存为新方案」。" FontSize="12" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="{DynamicResource ColorBrush2}" />
+                </StackPanel>
             </local:MyCard>
             <local:MyCard x:Name="CardBackground" Margin="0,0,0,15" Title="背景图片">
                 <StackPanel Margin="25,40,25,20">
+                    <!-- 预览模式：勾上后本页所有卡片、顶栏、左侧导航全部收起，
+                         只留窗口左下角那条浮动面板来调整背景，这样能完整看到整张图。
+                         浮动条本身在 FormMain.xaml 里（PanBgPreview）。 -->
+                    <local:MyCheckBox local:SettingService.Key="UiBackgroundPreview" Text="预览整张背景（收起所有卡片与导航，只用左下角浮动面板调整）" Margin="-1,0,0,10" Height="22" x:Name="CheckBackgroundPreview"
+                                      ToolTip="只影响显示，不会改动任何设置；退出预览请点浮动面板上的「退出预览」" />
                     <Grid x:Name="PanBackgroundSuit" Height="28" Margin="0,0,0,10" Visibility="Collapsed">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="Name" />
@@ -125,6 +186,61 @@
                             <local:MyComboBoxItem local:SettingService.Value="8" Content="右下 (保持长宽比)" />
                         </local:MyComboBox>
                     </Grid>
+                    <!--背景图片尺寸与比例（随背景图片一起显示，未加载背景图时隐藏）-->
+                    <StackPanel x:Name="PanBackgroundSize" Visibility="Collapsed">
+                        <local:MyCheckBox local:SettingService.Key="UiBackgroundAspectLock" Text="锁定宽高比例" Margin="-1,0,0,8" Height="22" x:Name="CheckBackgroundAspectLock" />
+                        <Grid Height="22" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="Name" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left" Text="整体缩放" Margin="0,0,25,0" />
+                            <local:MySlider local:SettingService.Key="UiBackgroundScale" x:Name="SliderBackgroundScale" MaxValue="400" ValueByKey="5" Grid.Column="1"
+                                            ToolTip="缩放整张背景图片，100% 为原始大小" />
+                        </Grid>
+                        <Grid x:Name="PanBackgroundScaleW" Height="22" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="Name" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left" Text="宽度比例" Margin="0,0,25,0" />
+                            <local:MySlider local:SettingService.Key="UiBackgroundScaleW" x:Name="SliderBackgroundScaleW" MaxValue="400" ValueByKey="5" Grid.Column="1" />
+                        </Grid>
+                        <Grid x:Name="PanBackgroundScaleH" Height="22" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="Name" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left" Text="高度比例" Margin="0,0,25,0" />
+                            <local:MySlider local:SettingService.Key="UiBackgroundScaleH" x:Name="SliderBackgroundScaleH" MaxValue="400" ValueByKey="5" Grid.Column="1" />
+                        </Grid>
+                        <!--位移滑条：MySlider 没有 MinValue，因此使用 0~1000 的映射范围，实际位移 = 滑条值 - 500（换算见 PageSetupUI.xaml.vb 的 BackgroundSizeRefresh）-->
+                        <Grid Height="22" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="Name" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left" Text="水平位移" Margin="0,0,25,0" />
+                            <local:MySlider x:Name="SliderBackgroundOffsetX" MaxValue="1000" ValueByKey="10" Grid.Column="1"
+                                            ToolTip="范围为 -500 ~ 500 像素，正数向右" />
+                        </Grid>
+                        <Grid Height="22" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="Name" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left" Text="垂直位移" Margin="0,0,25,0" />
+                            <local:MySlider x:Name="SliderBackgroundOffsetY" MaxValue="1000" ValueByKey="10" Grid.Column="1"
+                                            ToolTip="范围为 -500 ~ 500 像素，正数向下" />
+                        </Grid>
+                        <local:MyCheckBox local:SettingService.Key="UiBackgroundClip" Text="裁剪超出窗口的部分" Margin="-1,0,0,8" Height="22" x:Name="CheckBackgroundClip" />
+                        <Grid Height="35" Margin="0,2,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="Button" />
+                            </Grid.ColumnDefinitions>
+                            <local:MyButton x:Name="BtnBackgroundSizeReset" MinWidth="140" Text="重置尺寸" Padding="13,0" ToolTip="将背景图片的缩放与位移恢复为默认值" />
+                        </Grid>
+                    </StackPanel>
                     <Grid x:Name="PanBackgroundOpacity" Height="22" Margin="0,0,0,7" Visibility="Collapsed">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="Name" />
